@@ -282,7 +282,7 @@ export interface Adapter {
   }): Awaitable<VerificationToken | null>
 
   /**
-   * Create a new authenticator for an account and returns it.
+   * Creates a new authenticator for an account and returns it.
    *
    * If the creation fails, the adapter must throw an error.
    */

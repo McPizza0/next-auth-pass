@@ -1,4 +1,4 @@
-import { render } from "preact-render-to-string"
+import { renderToString } from "preact-render-to-string"
 import ErrorPage from "./error.js"
 import SigninPage from "./signin.js"
 import SignoutPage from "./signout.js"
@@ -12,7 +12,7 @@ import type {
   RequestInternal,
   ResponseInternal,
 } from "../../types.js"
-import type { Cookie } from "../cookie"
+import type { Cookie } from "../cookie.js"
 
 function send({
   html,
@@ -39,7 +39,7 @@ function send({
   </head>
   <body class="__next-auth-theme-${theme?.colorScheme ?? "auto"}">
     <div class="page">
-      ${render(html)}
+      ${renderToString(html)}
     </div>
     ${bodyScript ? "<script>" + bodyScript + "</script>" : ""}
   </body>

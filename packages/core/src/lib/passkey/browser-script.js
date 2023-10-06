@@ -20,17 +20,6 @@ export async function passkeyScript(baseURL) {
   const startRegistration = SimpleWebAuthnBrowser.startRegistration
 
   /**
-   * Display an error on the page by redirecting to the same page with an error query parameter
-   * 
-   * @param {string | Error} message error or error message
-   */
-  function displayError(message) {
-    const url = new URL(window.location.href)
-    url.searchParams.set("error", typeof message === "string" ? message : message.message)
-    // window.location.search = url.search
-  }
-
-  /**
    * Fetch passkey options from the server
    * 
    * @template {PasskeyOptionsAction} T
@@ -47,7 +36,8 @@ export async function passkeyScript(baseURL) {
 
     const res = await fetch(url)
     if (!res.ok) {
-      displayError(await res.text() || res.statusText)
+      console.error("Failed to fetch options", res)
+
       return
     }
 
@@ -98,7 +88,7 @@ export async function passkeyScript(baseURL) {
         url.searchParams.append("data", JSON.stringify(data))
       }
 
-      /** @type {any} */
+      /** @type {any} If this was a typescript file, we could use function overload to make the return value conditional, and avoid casting any here */
       const res = await fetch(url)
       return res
     }
@@ -121,7 +111,7 @@ export async function passkeyScript(baseURL) {
       form.appendChild(dataInput)
     }
 
-    /** @type {any} */
+    /** @type {any} If this was a typescript file, we could use function overload to make the return value conditional, and avoid casting any, here */
     const v = form.submit()
     return v
   }
@@ -183,16 +173,15 @@ export async function passkeyScript(baseURL) {
 
     try {
       await authenticationFlow(res.options, true)
-    } catch (/** @type {any} */ e) {
+    } catch (e) {
       console.error(e)
-      displayError(e)
     }
   }
 
   /**
    * Sets up the passkey form by overriding the form submission handler
    * so that it attempts to authenticate the user when the form is submitted.
-   * If the user is not registered, it will attempt to register them.
+   * If the user is not registered, it will attempt to register them instead.
    */
   async function setupForm() {
     const form = getForm()
@@ -221,16 +210,14 @@ export async function passkeyScript(baseURL) {
         if (res.action === "authenticate") {
           try {
             await authenticationFlow(res.options, false)
-          } catch (/** @type {any} */ e) {
+          } catch (e) {
             console.error(e)
-            displayError(e)
           }
         } else if (res.action === "register") {
           try {
             await registrationFlow(res.options)
-          } catch (/** @type {any} */ e) {
+          } catch (e) {
             console.error(e)
-            displayError(e)
           }
         }
       })

@@ -11,7 +11,7 @@ import {
 import type { Account, InternalOptions, User } from "../types.js"
 import type { JWT } from "../jwt.js"
 import type { OAuthConfig } from "../providers/index.js"
-import type { SessionToken } from "./cookie"
+import type { SessionToken } from "./cookie.js"
 
 /**
  * This function handles the complex flow of signing users in, and either creating,
@@ -125,7 +125,6 @@ export async function handleLogin(
 
     return { session, user, isNewUser }
   } else if (account.type === "oidc" || account.type === "oauth") {
-
     // If signing in with OAuth account, check to see if the account exists already
     const userByAccount = await getUserByAccount({
       providerAccountId: account.providerAccountId,
@@ -150,10 +149,10 @@ export async function handleLogin(
       session = useJwtSession
         ? {}
         : await createSession({
-          sessionToken: generateSessionToken(),
-          userId: userByAccount.id,
-          expires: fromDate(options.session.maxAge),
-        })
+            sessionToken: generateSessionToken(),
+            userId: userByAccount.id,
+            expires: fromDate(options.session.maxAge),
+          })
 
       return { session, user: userByAccount, isNewUser }
     } else {
@@ -229,10 +228,10 @@ export async function handleLogin(
       session = useJwtSession
         ? {}
         : await createSession({
-          sessionToken: generateSessionToken(),
-          userId: user.id,
-          expires: fromDate(options.session.maxAge),
-        })
+            sessionToken: generateSessionToken(),
+            userId: user.id,
+            expires: fromDate(options.session.maxAge),
+          })
 
       return { session, user, isNewUser: true }
     }
