@@ -22,7 +22,7 @@ import type {
   RequestInternal,
   ResponseInternal,
 } from "../../types.js"
-import type { Cookie, SessionStore } from "../cookie"
+import type { Cookie, SessionStore } from "../cookie.js"
 import { verifyAuthentication, verifyRegistration } from "../passkey/verify.js"
 
 /** Handle callbacks from login services */

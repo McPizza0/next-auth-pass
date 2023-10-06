@@ -125,11 +125,6 @@ export async function passkeyScript(baseURL) {
    * @returns {Promise<void>}
    */
   async function authenticationFlow(options, autofill) {
-    // Get email from form
-    const form = getForm()
-    /** @type {string | undefined} */
-    const email = form.email ? form.email.value : undefined
-
     // Start authentication
     const authResp = await startAuthentication(options, autofill)
 
