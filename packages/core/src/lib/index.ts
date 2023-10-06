@@ -1,5 +1,5 @@
 import { UnknownAction } from "../errors.js"
-import { SessionStore } from "./cookie.js"
+import { SessionStore } from "./cookie"
 import { init } from "./init.js"
 import renderPage from "./pages/index.js"
 import * as routes from "./routes/index.js"
@@ -18,7 +18,7 @@ export async function AuthInternal<
   request: RequestInternal,
   authOptions: AuthConfig
 ): Promise<ResponseInternal<Body>> {
-  const { action, providerId, error, method } = request
+  const { action, providerId, error, method, query } = request
 
   const csrfDisabled = authOptions.skipCSRFCheck === skipCSRFCheck
 
@@ -130,6 +130,24 @@ export async function AuthInternal<
         }
 
         return render.error({ error: error as ErrorPageParam })
+      case "options":
+        // Find the passkey provider
+        const provider = options.providers.find((p) => p.type === "passkey")
+        if (provider) {
+          // Set it as the current provider
+          options.provider = provider
+          // Get data from query
+          const { email, action }: Record<string, string | undefined> =
+            query ?? {}
+          // Get passkey options
+          const po = await routes.passkeyOptions(
+            options,
+            sessionStore,
+            action,
+            email
+          )
+          return { ...po, body: JSON.stringify(po.body) as any }
+        }
       default:
     }
   } else {
@@ -151,9 +169,10 @@ export async function AuthInternal<
         return { redirect: `${options.url}/signout?csrf=true`, cookies }
       case "callback":
         if (options.provider) {
-          // Verified CSRF Token required for credentials providers only
+          // Verified CSRF Token required for credentials and passkey providers only
           if (
-            options.provider.type === "credentials" &&
+            (options.provider.type === "credentials" ||
+              options.provider.type === "passkey") &&
             !csrfDisabled &&
             !options.csrfTokenVerified
           ) {

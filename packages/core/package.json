@@ -62,6 +62,8 @@
   "license": "ISC",
   "dependencies": {
     "@panva/hkdf": "^1.0.4",
+    "@simplewebauthn/browser": "^8.3.1",
+    "@simplewebauthn/server": "^8.2.0",
     "cookie": "0.5.0",
     "jose": "^4.11.1",
     "oauth4webapi": "^2.0.6",

@@ -1,3 +1,5 @@
+import type { Adapter } from "./adapters"
+
 interface ErrorCause extends Record<string, unknown> {}
 
 export class AuthError extends Error {
@@ -94,6 +96,24 @@ export class MissingAdapter extends AuthError {}
 /** @todo */
 export class MissingAdapterMethods extends AuthError {}
 
+/**
+ * Helper function to throw a `MissingAdapterMethods` error
+ * given an adapter and a list of methods that must be implemented.
+ *
+ * @param message error message
+ * @param adapter adapter instance
+ * @param methods list of methods that must be implemented
+ */
+export function FormatMissingAdapterMethods(
+  message: string,
+  adapter: Adapter,
+  methods: readonly (keyof Adapter)[]
+) {
+  return new MissingAdapterMethods(
+    `${message} "${methods.filter((m) => !!adapter[m]).join(", ")}".`
+  )
+}
+
 /** @todo */
 export class MissingAPIRoute extends AuthError {}
 
@@ -124,6 +144,7 @@ export class MissingSecret extends AuthError {}
  * but the user is trying an OAuth account that is not linked to it.
  */
 export class OAuthAccountNotLinked extends AuthError {}
+export const AccountNotLinkedError = OAuthAccountNotLinked
 
 /**
  * Thrown when an OAuth provider returns an error during the sign in process.
@@ -195,3 +216,11 @@ export class UntrustedHost extends AuthError {}
  * or because it token has expired. Ask the user to log in again.
  */
 export class Verification extends AuthError {}
+
+/**
+ * This error occurs when the verification step of the
+ * webauthn authentication or registration process fails.
+ * This could happend because of a malformed response from the client,
+ * mismatching challenge/origin/RPID, user refused to authenticate, etc.
+ */
+export class WebAuthnVerificationError extends AuthError {}

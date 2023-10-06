@@ -115,8 +115,9 @@
  * @module adapters
  */
 
+import { FormatMissingAdapterMethods } from "./errors.js"
 import { ProviderType } from "./providers/index.js"
-import type { Account, Awaitable, User } from "./types.js"
+import type { Account, Awaitable, User, Authenticator } from "./types.js"
 // TODO: Discuss if we should expose methods to serialize and deserialize
 // the data? Many adapters share this logic, so it could be useful to
 // have a common implementation.
@@ -142,15 +143,16 @@ export interface AdapterUser extends User {
 /**
  * An account is a connection between a user and a provider.
  *
- * There are two types of accounts:
+ * There are three types of accounts:
  * - OAuth/OIDC accounts, which are created when a user signs in with an OAuth provider.
  * - Email accounts, which are created when a user signs in with an [Email provider](https://authjs.dev/reference/core/providers_email).
+ * - Passkey accounts, which are created when a user registers a [Passkey provider](https://authjs.dev/reference/core/providers_passkey).
  *
  * One user can have multiple accounts.
  */
 export interface AdapterAccount extends Account {
   userId: string
-  type: Extract<ProviderType, "oauth" | "oidc" | "email">
+  type: Extract<ProviderType, "oauth" | "oidc" | "email" | "passkey">
 }
 
 /**
@@ -198,6 +200,8 @@ export interface VerificationToken {
   token: string
 }
 
+export interface AdapterAuthenticator extends Authenticator { }
+
 /**
  * An adapter is an object with function properties (methods) that read and write data from a data source.
  * Think of these methods as a way to normalize the data layer to common interfaces that Auth.js can understand.
@@ -239,6 +243,13 @@ export interface Adapter {
   unlinkAccount?(
     providerAccountId: Pick<AdapterAccount, "provider" | "providerAccountId">
   ): Promise<void> | Awaitable<AdapterAccount | undefined>
+  /**
+   * Returns all accounts linked to a user.
+   *
+   * If a user is not found, the adapter must return `null`.
+   * If the retrieval fails for some other reason, the adapter must throw an error.
+   */
+  listLinkedAccounts?(userId: string): Awaitable<AdapterAccount[] | null>
   /** Creates a session for the user and returns it. */
   createSession?(session: {
     sessionToken: string
@@ -269,6 +280,90 @@ export interface Adapter {
     identifier: string
     token: string
   }): Awaitable<VerificationToken | null>
+
+  /**
+   * Create a new authenticator for an account and returns it.
+   *
+   * If the creation fails, the adapter must throw an error.
+   */
+  createAuthenticator?(
+    authenticator: AdapterAuthenticator
+  ): Awaitable<AdapterAuthenticator>
+  /**
+   * Updates the counter on an authenticator.
+   *
+   * If an authenticator is not found, the adapter must return `null`.
+   * If the update fails for some other reason, the adapter must throw an error.
+   */
+  updateAuthenticatorCounter?(
+    authenticator: Pick<AdapterAuthenticator, "credentialID">,
+    newCounter: number
+  ): Awaitable<AdapterAuthenticator | null>
+  /**
+   * Returns all authenticators from an account.
+   *
+   * If an account is not found, the adapter must return `null`.
+   * If the retrieval fails for some other reason, the adapter must throw an error.
+   */
+  listAuthenticatorsByAccountId?(
+    accountId: string
+  ): Awaitable<AdapterAuthenticator[] | null>
+  /**
+   * Returns an authenticator by its credential id.
+   *
+   * If an authenticator is not found, the adapter must return `null`.
+   * If the retrieval fails for some other reason, the adapter must throw an error.
+   */
+  getAuthenticator?(
+    credentialId: Uint8Array
+  ): Awaitable<AdapterAuthenticator | null>
+  /**
+   * Deletes an authenticator by its credential id.
+   *
+   * If the deletion is successful, the adapter must return `true`.
+   * if an authenticator is not found, the adapter must return `false`.
+   * If the deletion fails for some other reason, the adapter must throw an error.
+   *
+   * @todo This method is currently not invoked yet.
+   */
+  deleteAuthenticator?(credentialId: Uint8Array): Awaitable<boolean>
+}
+
+type AdapterMethod<T extends keyof Adapter = keyof Adapter> = NonNullable<
+  Adapter[T]
+>
+
+/**
+ * Helper type guard to check if an adapter implements a list of methods.
+ *
+ * @param adapter Adapter to check
+ * @param methods List of methods to check
+ * @returns True if the adapter implements all the methods, false otherwise.
+ */
+export function adapterImplementsMethods<T extends keyof Adapter>(
+  adapter: Adapter,
+  methods: readonly T[]
+): adapter is Adapter & Record<T, AdapterMethod<T>> {
+  return methods.every((m) => !!adapter[m])
+}
+
+/**
+ * Helper assertion to check if an adapter implements a list of methods.
+ * If the adapter does not implement all the methods, an error is thrown
+ * displaying the provided message and the list of missing methods.
+ *
+ * @param message Message to display in the error
+ * @param adapter Adapter to check
+ * @param methods List of methods to check
+ */
+export function assertAdapterImplementsMethods<T extends keyof Adapter>(
+  message: string,
+  adapter: Adapter,
+  methods: readonly T[]
+): asserts adapter is Adapter & Record<T, AdapterMethod<T>> {
+  if (!adapterImplementsMethods(adapter, methods)) {
+    throw FormatMissingAdapterMethods(message, adapter, methods)
+  }
 }
 
 // For compatibility with older versions of NextAuth.js
@@ -281,7 +376,7 @@ declare module "next-auth/adapters" {
   type JsonPrimitive = string | number | boolean | null
   type JsonValue = JsonPrimitive | JsonObject | JsonArray
   interface AdapterAccount {
-    type: "oauth" | "email" | "oidc"
+    type: "oauth" | "email" | "oidc" | "passkey"
     [key: string]: JsonValue | undefined
   }
 }

@@ -9,14 +9,21 @@ import { handleState } from "../oauth/handle-state.js"
 import { createHash } from "../web.js"
 import { handleAuthorized } from "./shared.js"
 
-import type { AdapterSession } from "../../adapters.js"
+import {
+  assertAdapterImplementsMethods,
+  type Adapter,
+  type AdapterAuthenticator,
+  type AdapterSession,
+  type AdapterUser,
+} from "../../adapters.js"
 import type {
   Account,
   InternalOptions,
   RequestInternal,
   ResponseInternal,
 } from "../../types.js"
-import type { Cookie, SessionStore } from "../cookie.js"
+import type { Cookie, SessionStore } from "../cookie"
+import { verifyAuthentication, verifyRegistration } from "../passkey/verify.js"
 
 /** Handle callbacks from login services */
 export async function callback(params: {
@@ -28,7 +35,15 @@ export async function callback(params: {
   cookies: RequestInternal["cookies"]
   sessionStore: SessionStore
 }): Promise<ResponseInternal> {
-  const { options, query, body, method, headers, sessionStore } = params
+  const {
+    options,
+    query,
+    body,
+    method,
+    headers,
+    sessionStore,
+    cookies: reqCookies,
+  } = params
   const {
     provider,
     adapter,
@@ -172,9 +187,8 @@ export async function callback(params: {
       // Note that the callback URL is preserved, so the journey can still be resumed
       if (isNewUser && pages.newUser) {
         return {
-          redirect: `${pages.newUser}${
-            pages.newUser.includes("?") ? "&" : "?"
-          }${new URLSearchParams({ callbackUrl })}`,
+          redirect: `${pages.newUser}${pages.newUser.includes("?") ? "&" : "?"
+            }${new URLSearchParams({ callbackUrl })}`,
           cookies,
         }
       }
@@ -283,9 +297,8 @@ export async function callback(params: {
       // Note that the callback URL is preserved, so the journey can still be resumed
       if (isNewUser && pages.newUser) {
         return {
-          redirect: `${pages.newUser}${
-            pages.newUser.includes("?") ? "&" : "?"
-          }${new URLSearchParams({ callbackUrl })}`,
+          redirect: `${pages.newUser}${pages.newUser.includes("?") ? "&" : "?"
+            }${new URLSearchParams({ callbackUrl })}`,
           cookies,
         }
       }
@@ -365,6 +378,159 @@ export async function callback(params: {
 
       // @ts-expect-error
       await events.signIn?.({ user, account })
+
+      return { redirect: callbackUrl, cookies }
+    } else if (provider.type === "passkey" && method === "POST") {
+      // Parse body
+      const { action, data, email } = (body as Record<string, unknown>) ?? {}
+
+      if (!data) {
+        return {
+          status: 400,
+          body: "Missing data in request body",
+          cookies,
+        }
+      }
+
+      let user: AdapterUser | undefined
+      let account: Account | undefined
+      let authenticator: AdapterAuthenticator | undefined
+
+      if (action === "authenticate") {
+        // Authentication is akin to signing, but with a passkey.
+        // To authenticate, we need to verify the data provided by the client
+        // and compare that with an existing passkey and the challenge cookie
+        // that was stored during the previous step of the authentication flow.
+        const result = await verifyAuthentication(options, reqCookies, data)
+        if (typeof result === "string") {
+          return {
+            status: 400,
+            body: result,
+            cookies,
+          }
+        }
+
+        // If the verification was successful, set the user and account
+        user = result.user
+        account = result.account
+      } else if (action === "register") {
+        // Registration is akin to signing up, but with a passkey.
+        // To register we do something similar to authentication, but we
+        // don't have an existing authenticator to compare with. Instead we
+        // use the challenge to verify that the entity that requested the
+        // registration is the same as the one that is now attempting to
+        // register. After that, we create a new authenticator, possubly
+        // a new user and account, and then return theem.
+        const result = await verifyRegistration(
+          options,
+          reqCookies,
+          data,
+          email
+        )
+        // If the response is a string, it's an error message.
+        if (typeof result === "string") {
+          return {
+            status: 400,
+            body: result,
+            cookies,
+          }
+        }
+
+        user = result.user
+        account = result.account
+        authenticator = result.authenticator
+      } else {
+        return {
+          status: 400,
+          body: "Invalid action in request body",
+          cookies,
+        }
+      }
+
+      // Check if user is allowed to sign in
+      const unauthorizedOrError = await handleAuthorized(
+        { user, account },
+        options
+      )
+      if (unauthorizedOrError) return { ...unauthorizedOrError, cookies }
+
+      // Sign user in
+      const { session, isNewUser } = await handleLogin(
+        sessionStore.value,
+        user,
+        account,
+        options
+      )
+
+      // Create a new authenticator if registering
+      if (authenticator) {
+        const localAdapter: Adapter | undefined = adapter
+        if (!localAdapter) {
+          throw new Error("Adapter is required for passkey provider")
+        }
+        assertAdapterImplementsMethods(
+          "Adapter must implement these methods for a passkey callback",
+          localAdapter,
+          ["createAuthenticator"]
+        )
+        await localAdapter.createAuthenticator(authenticator)
+      }
+
+      if (useJwtSession) {
+        const defaultToken = {
+          name: user.name,
+          email: user.email,
+          picture: user.image,
+          sub: user.id?.toString(),
+        }
+        const token = await callbacks.jwt({
+          token: defaultToken,
+          user,
+          account,
+          isNewUser,
+          trigger: isNewUser ? "signUp" : "signIn",
+        })
+
+        // Clear cookies if token is null
+        if (token === null) {
+          cookies.push(...sessionStore.clean())
+        } else {
+          // Encode token
+          const newToken = await jwt.encode({ ...jwt, token })
+
+          // Set cookie expiry date
+          const cookieExpires = new Date()
+          cookieExpires.setTime(cookieExpires.getTime() + sessionMaxAge * 1000)
+
+          const sessionCookies = sessionStore.chunk(newToken, {
+            expires: cookieExpires,
+          })
+          cookies.push(...sessionCookies)
+        }
+      } else {
+        // Save Session Token in cookie
+        cookies.push({
+          name: options.cookies.sessionToken.name,
+          value: (session as AdapterSession).sessionToken,
+          options: {
+            ...options.cookies.sessionToken.options,
+            expires: (session as AdapterSession).expires,
+          },
+        })
+      }
+
+      await events.signIn?.({ user, account, isNewUser })
+
+      // Handle first logins on new accounts
+      // e.g. option to send users to a new account landing page on initial login
+      // Note that the callback URL is preserved, so the journey can still be resumed
+      if (isNewUser && pages.newUser) {
+        return {
+          redirect: `${pages.newUser}${pages.newUser.includes("?") ? "&" : "?"
+            }${new URLSearchParams({ callbackUrl })}`,
+          cookies,
+        }
+      }
 
       return { redirect: callbackUrl, cookies }
     }

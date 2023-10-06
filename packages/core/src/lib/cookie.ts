@@ -1,4 +1,6 @@
-import type { CookieOption, CookiesOptions, LoggerInstance } from "../types.js"
+import { base64url } from "jose"
+import { decode, encode } from "../jwt.js"
+import type { CookieOption, CookiesOptions, InternalOptions, LoggerInstance, RequestInternal } from "../types.js"
 
 // Uncomment to recalculate the estimated size
 // of an empty session cookie
@@ -105,6 +107,15 @@ export function defaultCookies(useSecureCookies: boolean): CookiesOptions {
     },
     nonce: {
       name: `${cookiePrefix}next-auth.nonce`,
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: useSecureCookies,
+      },
+    },
+    challenge: {
+      name: `${cookiePrefix}next-auth.challenge`,
       options: {
         httpOnly: true,
         sameSite: "lax",
@@ -241,4 +252,65 @@ export class SessionStore {
   clean(): Cookie[] {
     return Object.values(this.#clean())
   }
+}
+
+type SignedCookiePayload = { value: string }
+
+export function encodePayload(payload: unknown): string {
+  return base64url.encode(JSON.stringify(payload))
+}
+
+/** Returns a signed cookie. */
+export async function signCookie<T extends unknown>(
+  type: keyof CookiesOptions,
+  value: T,
+  options: InternalOptions,
+  data?: unknown
+): Promise<[Cookie, string]> {
+  const { cookies, logger } = options
+
+  logger.debug(`CREATE_${type.toUpperCase()}`, { value })
+
+  const encoded = encodePayload(value)
+  const payload: SignedCookiePayload = {
+    value: encoded,
+  }
+
+  const maxAge = cookies[type].options.maxAge
+
+  return [
+    {
+      name: cookies[type].name,
+      value: await encode({
+        ...options.jwt,
+        maxAge,
+        token: { ...payload, data },
+      }),
+      options: { ...cookies[type].options },
+    },
+    encoded,
+  ]
+}
+
+export function decodePayload<T extends unknown>(encoded: string): T {
+  return JSON.parse(new TextDecoder().decode(base64url.decode(encoded)))
+}
+
+/** Returns a signed cookie's data */
+export async function decodeSignedCookie<T extends unknown>(
+  type: keyof CookiesOptions,
+  cookies: RequestInternal["cookies"],
+  options: InternalOptions
+): Promise<[T, string] | [null, null]> {
+  const name = options.cookies[type].name
+  const signed = cookies?.[name]
+  if (!signed) return [null, null]
+
+  const payload = await decode<SignedCookiePayload>({
+    ...options.jwt,
+    token: signed,
+  })
+  if (!payload?.value) return [null, null]
+
+  return [decodePayload(payload.value) as T, payload.value]
 }
