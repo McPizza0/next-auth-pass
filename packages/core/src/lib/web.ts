@@ -34,14 +34,6 @@ export async function toInternalRequest(
     // TODO: url.toString() should not include action and providerId
     // see init.ts
     const url = new URL(req.url.replace(/\/$/, ""))
-    if (req.headers.get("x-forwarded-host")) {
-      url.host = req.headers.get("x-forwarded-host") ?? url.host
-      url.port = req.headers.get("x-forwarded-port") ?? url.port
-    }
-    if (req.headers.get("x-forwarded-proto")) {
-      url.protocol =
-        req.headers.get("x-forwarded-proto")?.split(",")[0] ?? url.protocol
-    }
     // FIXME: Upstream issue in Next.js, pathname segments get included as part of the query string
     url.searchParams.delete("nextauth")
     const pathname = url.pathname.replace(/\/$/, "")

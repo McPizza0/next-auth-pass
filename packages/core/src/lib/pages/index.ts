@@ -35,15 +35,13 @@ function send({
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>${css}</style>
     <title>${title}</title>
-    ${headScript}
+    ${headScript ? headScript : ""}
   </head>
   <body class="__next-auth-theme-${theme?.colorScheme ?? "auto"}">
     <div class="page">
       ${render(html)}
     </div>
-    <script>
-      ${bodyScript}
-    </script>
+    ${bodyScript ? "<script>" + bodyScript + "</script>" : ""}
   </body>
 </html>`,
   }
