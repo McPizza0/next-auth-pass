@@ -82,7 +82,7 @@ export async function verifyAuthentication(
   const uintID = new Uint8Array(Buffer.from(response.id, "base64"))
   const authenticator = (await adapter.getAuthenticator(uintID)) ?? null
   if (!authenticator) {
-    logger.debug(`Authenticator not found.`, { id: response.id, uintID })
+    logger.debug(`Authenticator not found.`, { id: response.id })
     return `Authenticator not found.`
   }
 
@@ -242,6 +242,7 @@ export async function verifyRegistration(
     credentialBackedUp: registrationInfo.credentialBackedUp,
     credentialDeviceType: registrationInfo.credentialDeviceType,
     credentialPublicKey: registrationInfo.credentialPublicKey,
+    transports: (response as RegistrationResponseJSON).response.transports as AuthenticatorTransport[] | undefined,
   }
 
   return { authenticator, account, user }

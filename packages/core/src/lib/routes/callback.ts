@@ -382,14 +382,19 @@ export async function callback(params: {
       return { redirect: callbackUrl, cookies }
     } else if (provider.type === "passkey" && method === "POST") {
       // Parse body
-      const { action, data, email } = (body as Record<string, unknown>) ?? {}
+      const { action, data: _data, email } = (body as Record<string, unknown>) ?? {}
 
-      if (!data) {
+      if (!_data) {
         return {
-          status: 400,
-          body: "Missing data in request body",
+          redirect: `${options.url}/signin?error=MissingData`,
           cookies,
         }
+      }
+
+      // Handle objects and stringified data
+      let data: unknown = _data
+      if (typeof _data === "string") {
+        data = JSON.parse(_data)
       }
 
       let user: AdapterUser | undefined
@@ -404,8 +409,7 @@ export async function callback(params: {
         const result = await verifyAuthentication(options, reqCookies, data)
         if (typeof result === "string") {
           return {
-            status: 400,
-            body: result,
+            redirect: `${url}/signin?error=${encodeURIComponent(result)}`,
             cookies,
           }
         }
@@ -430,8 +434,7 @@ export async function callback(params: {
         // If the response is a string, it's an error message.
         if (typeof result === "string") {
           return {
-            status: 400,
-            body: result,
+            redirect: `${url}/signin?error=${encodeURIComponent(result)}`,
             cookies,
           }
         }
@@ -441,8 +444,7 @@ export async function callback(params: {
         authenticator = result.authenticator
       } else {
         return {
-          status: 400,
-          body: "Invalid action in request body",
+          redirect: `${options.url}/signin?error=InvalidAction`,
           cookies,
         }
       }

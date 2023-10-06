@@ -44,8 +44,8 @@ async function getUserAndAuthenticators(
   // Find the account's authenticators
   const authenticators = account
     ? (await adapter.listAuthenticatorsByAccountId(
-        account.providerAccountId
-      )) ?? undefined
+      account.providerAccountId
+    )) ?? undefined
     : undefined
 
   return [authenticators, user]

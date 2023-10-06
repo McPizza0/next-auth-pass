@@ -267,9 +267,7 @@ export async function signCookie<T extends unknown>(
   options: InternalOptions,
   data?: unknown
 ): Promise<[Cookie, string]> {
-  const { cookies, logger } = options
-
-  logger.debug(`CREATE_${type.toUpperCase()}`, { value })
+  const { cookies } = options
 
   const encoded = encodePayload(value)
   const payload: SignedCookiePayload = {

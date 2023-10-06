@@ -71,21 +71,22 @@ export async function passkeyScript(baseURL) {
    * Passkey form submission handler.
    * Takes the input from the form and a few other parameters and submits it to the server.
    * 
-   * @param {"GET" | "POST"} method http method to use
+   * @template {"GET" | "POST"} T
+   * @param {T} method http method to use
    * @param {PasskeyOptionsAction} action action to submit
    * @param {unknown | undefined} data optional data to submit
-   * @returns {Promise<Response>}
+   * @returns {Promise<T extends "GET" ? Response : void>}
    */
-  function submitForm(method, action, data) {
+  async function submitForm(method, action, data) {
     const form = getForm()
-
-    // Create a FormData object from the form and
-    // append the action
-    const formData = new FormData(form)
-    const url = new URL(form.action)
-    formData.append("action", action)
+    console.log("SUBMITTING FORM", {form, method, action, data})
     
     if (method === "GET") {
+      // If GET request, append action and data to URL as query parameters
+      const formData = new FormData(form)
+      const url = new URL(form.action)
+      formData.append("action", action)
+
       // Add form data to URL
       for (const [key, value] of formData.entries()) {
         if (typeof value !== "string") continue
@@ -97,25 +98,32 @@ export async function passkeyScript(baseURL) {
         url.searchParams.append("data", JSON.stringify(data))
       }
 
-      return fetch(url)
+      /** @type {any} */
+      const res = await fetch(url)
+      return res
     }
 
-    // Create a JSON object from the form data
-    const bodyJSON = Object.fromEntries(formData.entries())
+    // If a POST request, create hidden fields in the form
+    // and submit it so the browser redirects on login
+    if (action) {
+      const actionInput = document.createElement("input")
+      actionInput.type = "hidden"
+      actionInput.name = "action"
+      actionInput.value = action
+      form.appendChild(actionInput)
+    }
 
+    if (data) {
+      const dataInput = document.createElement("input")
+      dataInput.type = "hidden"
+      dataInput.name = "data"
+      dataInput.value = JSON.stringify(data)
+      form.appendChild(dataInput)
+    }
 
-    // Create the payload and add the data if provided
-    /** @type {Record<string, unknown>} */
-    const payload = { ...bodyJSON }
-    if (data) payload.data = data
-
-    return fetch(url, {
-      method,
-      body: JSON.stringify(payload),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    })
+    /** @type {any} */
+    const v = form.submit()
+    return v
   }
 
   /**
@@ -136,12 +144,7 @@ export async function passkeyScript(baseURL) {
     const authResp = await startAuthentication(options, autofill)
 
     // Submit authentication response to server
-    const res = await submitForm("POST", "authenticate", authResp)
-    if (!res.ok) {
-      throw new Error(`Failed to submit authentication response. email: "${email}", autofill: "${autofill}", status: "${res.status}", error: "${await res.text()}"`)
-    }
-    
-    return
+    return await submitForm("POST", "authenticate", authResp)
   }
 
   /**
@@ -158,12 +161,7 @@ export async function passkeyScript(baseURL) {
     const regResp = await startRegistration(options)
 
     // Submit registration response to server
-    const res = await submitForm("POST", "register", regResp)
-    if (!res.ok) {
-      throw new Error(`Failed to submit registration response. email: "${email}", status: "${res.status}", error: "${await res.text()}"`)
-    }
-
-    return
+    return await submitForm("POST", "register", regResp)
   }
 
   /**
@@ -173,6 +171,9 @@ export async function passkeyScript(baseURL) {
    * @returns {Promise<void>}
    */
   async function autofillAuthentication() {
+    // if the browser can't handle autofill, don't try
+    if (!SimpleWebAuthnBrowser.browserSupportsWebAuthnAutofill()) return
+
     const res = await fetchOptions("authenticate", undefined)
     if (!res) {
       console.error("Failed to fetch option for autofill authentication")
@@ -195,6 +196,13 @@ export async function passkeyScript(baseURL) {
    */
   async function setupForm() {
     const form = getForm()
+
+    // If the browser can't do WebAuthn, hide the form
+    if (!SimpleWebAuthnBrowser.browserSupportsWebAuthn()) {
+      form.style.display = "none"
+
+      return
+    }
 
     if (form) {
       form.addEventListener("submit", async (e) => {

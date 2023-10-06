@@ -77,7 +77,7 @@ export default function renderPage(params: RenderPageParams) {
       const bodyScript = passkeyProvider
         ? `(${passkeyScript})("${url}")`
         : undefined
-      const headTags = passkeyProvider
+      const headScript = passkeyProvider
         ? `<script src="https://unpkg.com/@simplewebauthn/browser@8.3.1/dist/bundle/index.es5.umd.min.js" integrity="sha384-eZYMtGBrkFn629MZjjVsF5di74KhByc7vUNWXJrEmVZew+mzeejEjKwfCwqLaxLD" crossorigin="anonymous"></script>`
         : undefined
 
@@ -103,7 +103,7 @@ export default function renderPage(params: RenderPageParams) {
         }),
         title: "Sign In",
         bodyScript,
-        headTags,
+        headScript,
       })
     },
     signout(props?: any) {
