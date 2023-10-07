@@ -9,6 +9,49 @@ import type {
 } from "../passkey/types"
 
 /**
+ * Generate passkey registration options and set the challenge cookie.
+ */
+async function doRegister(options: InternalOptions<PasskeyProviderType>, email: string): Promise<ResponseInternal<PasskeyOptionsReturn>> {
+  // Get registration options
+  const regOptions = await registrationOptions(options, email)
+
+  // Set the cookie
+  const cookieData: PasskeyOptionsCookieData = {
+    providerAccountId: regOptions.user.id,
+    challenge: regOptions.challenge,
+  }
+  const [cookie] = await signCookie("challenge", cookieData, options)
+
+  // Return the options and set the challenge cookie
+  return {
+    status: 200,
+    body: { options: regOptions, action: "register" },
+    cookies: [cookie],
+  }
+}
+
+/**
+ * Generate passkey authentication options and set the challenge cookie.
+ */
+async function doAuthenticate(options: InternalOptions<PasskeyProviderType>, email?: string): Promise<ResponseInternal<PasskeyOptionsReturn>> {
+  // Get auth options
+  const authOptions = await authenticationOptions(options, email)
+
+  // Set the cookie
+  const cookieData: PasskeyOptionsCookieData = {
+    challenge: authOptions.challenge,
+  }
+  const [cookie] = await signCookie("challenge", cookieData, options)
+
+  // Return the options and set the challenge cookie
+  return {
+    status: 200,
+    body: { options: authOptions, action: "authenticate" },
+    cookies: [cookie],
+  }
+}
+
+/**
  * Handle passkey options requests by generating authentication or registration options
  * based on the query parameters and the user's credentials.
  *
@@ -24,7 +67,7 @@ export async function passkeyOptions(
 ): Promise<ResponseInternal<PasskeyOptionsReturn> | ResponseInternal<string>> {
   const { adapter } = options
 
-  let selectedAction = action
+  let selectedAction: string | undefined = action
 
   // Get the current session, if it exists
   // NOTE: this is a bit hacky, but routes.session seems to be
@@ -34,84 +77,49 @@ export async function passkeyOptions(
     sessionStore,
   })
   const sessionUserEmail = currentSession?.user?.email ?? undefined
+  const loggedIn = !!sessionUserEmail
 
-  // Ignore the email parameter if the user is logged in
-  const email = sessionUserEmail ?? queryEmail
+  const providedQueryEmail = !!queryEmail
 
-  // If the user did not provide an explicit action,
-  // we need to figure out what they want to do.
-  if (!selectedAction) {
-    if (!sessionUserEmail) {
-      if (queryEmail) {
-        // The user is not logged in and provided an email
-        // Let's check if the email is registered
-        const user = await adapter?.getUserByEmail(queryEmail)
-        if (user) {
-          // If the user exists, they want to authenticate
-          selectedAction = "authenticate"
+  // Find whether a user with queryEmail exists
+  let userWithEmailExists = false
+  if (providedQueryEmail) {
+    const existingUser = await adapter?.getUserByEmail(queryEmail)
+    userWithEmailExists = !!existingUser
+  }
+
+  // This logic is explained in the original PR:
+  // https://github.com/nextauthjs/next-auth/pull/8808
+  switch (selectedAction) {
+    case "authenticate": {
+      if (!loggedIn) {
+        return doAuthenticate(options, queryEmail)
+      }
+
+      break
+    }
+    case "register": {
+      if ((loggedIn !== providedQueryEmail) && !userWithEmailExists) {
+        return doRegister(options, sessionUserEmail ?? queryEmail as string) // TS isn't smart enough to know that this will be defined
+      }
+
+      break
+    }
+    case undefined: {
+      if (!loggedIn) {
+        if (providedQueryEmail === userWithEmailExists) {
+          return doAuthenticate(options, queryEmail)
         } else {
-          // if the user doesn't exist they want to register
-          selectedAction = "register"
+          return doRegister(options, queryEmail as string) // TS isn't smart enough to know that this will be defined
         }
-      } else {
-        // The user is not logged in and did not provide an email
-        // There is nothing we can do
-        return { status: 400, body: "email is required to register" }
       }
-    } else {
-      if (queryEmail) {
-        // The user is logged in and provided an email
-        // They probably want to register a new passkey
-        selectedAction = "register"
-      } else {
-        // The user is logged in and did not provide an email
-        // This is probably a bad request
-        return { status: 400, body: "email is required to register a new passkey" }
-      }
+
+      break
     }
   }
 
-  switch (selectedAction) {
-    case "authenticate": {
-      // Get auth options
-      const authOptions = await authenticationOptions(options, email)
-
-      // Set the cookie
-      const cookieData: PasskeyOptionsCookieData = {
-        challenge: authOptions.challenge,
-      }
-      const [cookie] = await signCookie("challenge", cookieData, options)
-
-      // Return the options and set the challenge cookie
-      return {
-        status: 200,
-        body: { options: authOptions, action: "authenticate" },
-        cookies: [cookie],
-      }
-    }
-    case "register": {
-      if (!email) {
-        return { status: 400, body: "email is required for registration" }
-      }
-
-      const regOptions = await registrationOptions(options, email)
-
-      // Set the cookie
-      const cookieData: PasskeyOptionsCookieData = {
-        providerAccountId: regOptions.user.id,
-        challenge: regOptions.challenge,
-      }
-      const [cookie] = await signCookie("challenge", cookieData, options)
-
-      // Return the options and set the challenge cookie
-      return {
-        status: 200,
-        body: { options: regOptions, action: "register" },
-        cookies: [cookie],
-      }
-    }
-    default: {
-      return { status: 400, body: "invalid action" }
-    }
+  return {
+    status: 400,
+    body: "Invalid action/email combination",
   }
 }
