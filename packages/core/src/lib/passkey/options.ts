@@ -11,6 +11,7 @@ import {
   assertAdapterImplementsMethods,
   type Adapter,
   type AdapterUser,
+  AdapterAccount,
 } from "../../adapters"
 import type { Options } from "./types"
 import { randomString } from "../web"
@@ -19,7 +20,7 @@ import { MissingAdapter } from "../../errors"
 async function getUserAndAuthenticators(
   options: Options,
   email?: string
-): Promise<[Authenticator[] | undefined, AdapterUser | null]> {
+): Promise<[Authenticator[] | undefined, AdapterUser | null, AdapterAccount | null]> {
   const { adapter: _adapter, provider } = options
   const adapter: Adapter | undefined = _adapter
 
@@ -39,7 +40,7 @@ async function getUserAndAuthenticators(
 
   // Find the user's account associated with the provider
   const accounts = user ? (await adapter.listLinkedAccounts(user.id)) ?? [] : []
-  const account = accounts.find((a) => a.provider === provider.id)
+  const account = accounts.find((a) => a.provider === provider.id) ?? null
 
   // Find the account's authenticators
   const authenticators = account
@@ -48,7 +49,7 @@ async function getUserAndAuthenticators(
     )) ?? undefined
     : undefined
 
-  return [authenticators, user]
+  return [authenticators, user, account]
 }
 
 /**
@@ -99,16 +100,16 @@ export async function registrationOptions(
   const { provider } = options
 
   // Get the user authenticators and user object
-  const [authenticators, user] = await getUserAndAuthenticators(options, email)
+  const [authenticators, user, account] = await getUserAndAuthenticators(options, email)
 
-  // Generate a random user ID and name if the user does not exist
-  const userID = user?.id ?? randomString(32)
+  // Generate a random acc ID and user name if the user does not exist
+  const accountProviderID = account?.providerAccountId ?? randomString(32)
   const userName = user?.name ?? user?.email ?? email
   const userDisplayName = user?.name ?? userName
 
   // Generate registration options
   const regOptions = await generateRegistrationOptions({
-    userID,
+    userID: accountProviderID,
     userName,
     userDisplayName,
     rpID: provider.relayingParty.id,
