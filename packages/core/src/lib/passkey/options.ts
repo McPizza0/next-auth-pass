@@ -1,4 +1,4 @@
-import type { Authenticator } from "../../types"
+import type { Authenticator, InternalOptions } from "../../types"
 import {
   generateAuthenticationOptions,
   generateRegistrationOptions,
@@ -13,12 +13,12 @@ import {
   type AdapterUser,
   AdapterAccount,
 } from "../../adapters"
-import type { Options } from "./types"
 import { randomString } from "../web"
 import { MissingAdapter } from "../../errors"
+import type { PasskeyProviderType } from "../../providers/passkey"
 
 async function getUserAndAuthenticators(
-  options: Options,
+  options: InternalOptions<PasskeyProviderType>,
   email?: string
 ): Promise<[Authenticator[] | undefined, AdapterUser | null, AdapterAccount | null]> {
   const { adapter: _adapter, provider } = options
@@ -62,7 +62,7 @@ async function getUserAndAuthenticators(
  * @returns The options prepared for the client.
  */
 export async function authenticationOptions(
-  options: Options,
+  options: InternalOptions<PasskeyProviderType>,
   email?: string
 ): Promise<PublicKeyCredentialRequestOptionsJSON> {
   const { provider } = options
@@ -95,7 +95,7 @@ export async function authenticationOptions(
  * @returns The options prepared for the client.
  */
 export async function registrationOptions(
-  options: Options,
+  options: InternalOptions<PasskeyProviderType>,
   email: string
 ): Promise<PublicKeyCredentialCreationOptionsJSON> {
   const { provider } = options

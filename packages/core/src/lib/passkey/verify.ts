@@ -1,4 +1,4 @@
-import type { Account, RequestInternal } from "../../types"
+import type { Account, InternalOptions, RequestInternal } from "../../types"
 import {
   VerifiedAuthenticationResponse,
   VerifiedRegistrationResponse,
@@ -15,13 +15,14 @@ import {
   type AdapterUser,
   assertAdapterImplementsMethods,
 } from "../../adapters"
-import type { Options, PasskeyOptionsCookieData } from "./types"
+import type { PasskeyOptionsCookieData } from "./types"
 import {
   AdapterError,
   MissingAdapter,
   WebAuthnVerificationError,
 } from "../../errors"
 import { decodeSignedCookie } from "../cookie"
+import type { PasskeyProviderType } from "../../providers/passkey"
 
 export type UserData = {
   user: AdapterUser
@@ -39,7 +40,7 @@ export type UserData = {
  * @returns Whether the authentication was successful.
  */
 export async function verifyAuthentication(
-  options: Options,
+  options: InternalOptions<PasskeyProviderType>,
   reqCookies: RequestInternal["cookies"],
   response: unknown
 ): Promise<UserData | string> {
@@ -161,7 +162,7 @@ export async function verifyAuthentication(
  * @returns
  */
 export async function verifyRegistration(
-  options: Options,
+  options: InternalOptions<PasskeyProviderType>,
   reqCookies: RequestInternal["cookies"],
   response: unknown,
   email: unknown
