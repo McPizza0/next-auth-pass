@@ -12,6 +12,8 @@ import type {
  * Generate passkey registration options and set the challenge cookie.
  */
 async function doRegister(options: InternalOptions<PasskeyProviderType>, email: string): Promise<ResponseInternal<PasskeyOptionsReturn>> {
+  const { provider } = options
+
   // Get registration options
   const regOptions = await registrationOptions(options, email)
 
@@ -20,7 +22,12 @@ async function doRegister(options: InternalOptions<PasskeyProviderType>, email: 
     providerAccountId: regOptions.user.id,
     challenge: regOptions.challenge,
   }
-  const [cookie] = await signCookie("challenge", cookieData, options)
+  const [cookie] = await signCookie({
+    type: "challenge",
+    value: cookieData,
+    cookieOptions: { maxAge: provider.timeout },
+    options
+  })
 
   // Return the options and set the challenge cookie
   return {
@@ -41,7 +48,12 @@ async function doAuthenticate(options: InternalOptions<PasskeyProviderType>, ema
   const cookieData: PasskeyOptionsCookieData = {
     challenge: authOptions.challenge,
   }
-  const [cookie] = await signCookie("challenge", cookieData, options)
+  const [cookie] = await signCookie({
+    type: "challenge",
+    value: cookieData,
+    cookieOptions: { maxAge: options.provider.timeout },
+    options
+  })
 
   // Return the options and set the challenge cookie
   return {

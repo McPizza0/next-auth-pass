@@ -73,6 +73,7 @@ export async function authenticationOptions(
   // Generate authentication options
   const authOptions = await generateAuthenticationOptions({
     rpID: provider.relayingParty.id,
+    timeout: provider.timeout,
     allowCredentials: authenticators?.map((a) => ({
       id: a.credentialID,
       type: "public-key",
@@ -114,6 +115,7 @@ export async function registrationOptions(
     userDisplayName,
     rpID: provider.relayingParty.id,
     rpName: provider.relayingParty.name,
+    timeout: provider.timeout,
     excludeCredentials: authenticators?.map((a) => ({
       id: a.credentialID,
       type: "public-key",

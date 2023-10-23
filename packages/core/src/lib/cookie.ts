@@ -1,6 +1,8 @@
 import { base64url } from "jose"
+import type { CookieSerializeOptions } from "cookie"
 import { decode, encode } from "../jwt.js"
 import type { CookieOption, CookiesOptions, InternalOptions, LoggerInstance, RequestInternal } from "../types.js"
+import { DEFAULT_PASSKEY_TIMEOUT } from "../providers/passkey.js"
 
 // Uncomment to recalculate the estimated size
 // of an empty session cookie
@@ -121,6 +123,7 @@ export function defaultCookies(useSecureCookies: boolean): CookiesOptions {
         sameSite: "lax",
         path: "/",
         secure: useSecureCookies,
+        maxAge: DEFAULT_PASSKEY_TIMEOUT,
       },
     },
   }
@@ -262,11 +265,19 @@ export function encodePayload(payload: unknown): string {
 
 /** Returns a signed cookie. */
 export async function signCookie<T extends unknown>(
-  type: keyof CookiesOptions,
-  value: T,
-  options: InternalOptions,
-  data?: unknown
-): Promise<[Cookie, string]> {
+  {
+    options,
+    type,
+    value,
+    data,
+    cookieOptions,
+  }: {
+    type: keyof CookiesOptions,
+    value: T,
+    options: InternalOptions,
+    data?: unknown,
+    cookieOptions?: CookieSerializeOptions
+  }): Promise<[Cookie, string]> {
   const { cookies } = options
 
   const encoded = encodePayload(value)
@@ -274,7 +285,7 @@ export async function signCookie<T extends unknown>(
     value: encoded,
   }
 
-  const maxAge = cookies[type].options.maxAge
+  const maxAge = cookieOptions?.maxAge ?? cookies[type].options.maxAge
 
   return [
     {
@@ -284,7 +295,7 @@ export async function signCookie<T extends unknown>(
         maxAge,
         token: { ...payload, data },
       }),
-      options: { ...cookies[type].options },
+      options: { ...cookies[type].options, ...cookieOptions },
     },
     encoded,
   ]
