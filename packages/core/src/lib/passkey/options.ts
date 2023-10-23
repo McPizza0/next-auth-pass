@@ -30,7 +30,7 @@ async function getUserAndAuthenticators(
       "WebaAuthn getUserAndAuthenticators requires an adapter."
     )
   assertAdapterImplementsMethods(
-    "WebaAuthn getUserAndAuthenticators requires an adapter that implements",
+    "WebAuthn getUserAndAuthenticators requires an adapter that implements",
     adapter,
     ["getUserByEmail", "listLinkedAccounts", "listAuthenticatorsByAccountId"]
   )
