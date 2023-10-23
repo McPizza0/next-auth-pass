@@ -180,10 +180,9 @@ export default function SigninPage(props: {
                   </button>
                 </form>
               ) : null}
-              {(provider.type === "email" || provider.type === "credentials") &&
-                i > 0 &&
-                providers[i - 1].type !== "email" &&
-                providers[i - 1].type !== "credentials" && <hr />}
+              {["email", "credentials", "passkey"].some((t) => provider.type === t) &&
+              i + 1 < providers.length &&
+              <hr />}
               {provider.type === "email" && (
                 <form action={provider.signinUrl} method="POST">
                   <input type="hidden" name="csrfToken" value={csrfToken} />
@@ -236,8 +235,35 @@ export default function SigninPage(props: {
                   </button>
                 </form>
               )}
-              {(provider.type === "email" || provider.type === "credentials") &&
-                i + 1 < providers.length && <hr />}
+              {provider.type === "passkey" && (
+                <form
+                  id="passkey-form"
+                  action={provider.callbackUrl}
+                  method="POST"
+                >
+                  <input type="hidden" name="csrfToken" value={csrfToken} />
+                  <label
+                    className="section-header"
+                    htmlFor={`input-email-for-${provider.id}-provider`}
+                  >
+                    Email
+                  </label>
+                  <input
+                    id={`input-email-for-${provider.id}-provider`}
+                    autoFocus
+                    type="email"
+                    name="email"
+                    autoComplete="username webauthn"
+                    value={email}
+                    placeholder="email@example.com"
+                    required
+                  />
+                  <button type="submit" tabIndex={0}>Sign in with {provider.name}</button>
+                </form>
+              )}
+              {["email", "credentials", "passkey"].some((t) => provider.type === t) &&
+              i + 1 < providers.length &&
+              <hr />}
             </div>
           )
         })}
