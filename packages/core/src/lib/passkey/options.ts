@@ -122,9 +122,8 @@ export async function registrationOptions(
       transports: a.transports,
     })),
     authenticatorSelection: {
-      residentKey: "preferred",
+      residentKey: "required",
       userVerification: "preferred",
-      requireResidentKey: true,
     },
   })
 
