@@ -107,10 +107,18 @@ export async function verifyAuthentication(
 
   // Update the authenticator counter
   try {
-    const newCounter = authenticationInfo.newCounter
+    const { newCounter } = authenticationInfo
     await adapter.updateAuthenticatorCounter(authenticator, newCounter)
   } catch (e: any) {
-    logger.error(new AdapterError(e))
+    // Log detailed error message
+    logger.error(new AdapterError(
+      `Failed to update authenticator counter. This may cause future authentication attempts to fail. ${JSON.stringify({
+        authenticatorID: response.id,
+        oldCounter: authenticator.counter,
+        newCounter: authenticationInfo.newCounter,
+      })}`, e))
+    // Throw base error to avoid leaking values
+    throw new AdapterError(e)
   }
 
   const user = await adapter.getUserByAccount({
