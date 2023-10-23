@@ -104,11 +104,7 @@ export async function passkeyOptions(
   // https://github.com/nextauthjs/next-auth/pull/8808
   switch (selectedAction) {
     case "authenticate": {
-      if (!loggedIn) {
-        return doAuthenticate(options, queryEmail)
-      }
-
-      break
+      return doAuthenticate(options, queryEmail)
     }
     case "register": {
       if ((loggedIn !== providedQueryEmail) && !userWithEmailExists) {
