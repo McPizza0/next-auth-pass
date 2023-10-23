@@ -146,7 +146,11 @@ export async function AuthInternal<
             action,
             email
           )
-          return { ...po, body: JSON.stringify(po.body) as any }
+          if (po.cookies) {
+            // Add passkey option cookies
+            cookies.push(...po.cookies)
+          }
+          return { ...po, body: JSON.stringify(po.body) as any, cookies }
         }
       default:
     }
