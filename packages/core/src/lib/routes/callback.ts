@@ -1,5 +1,6 @@
 import {
   CallbackRouteError,
+  MissingAdapter,
   OAuthCallbackError,
   Verification,
 } from "../../errors.js"
@@ -10,8 +11,6 @@ import { createHash } from "../web.js"
 import { handleAuthorized } from "./shared.js"
 
 import {
-  assertAdapterImplementsMethods,
-  type Adapter,
   type AdapterAuthenticator,
   type AdapterSession,
   type AdapterUser,
@@ -467,16 +466,10 @@ export async function callback(params: {
 
       // Create a new authenticator if registering
       if (authenticator) {
-        const localAdapter: Adapter | undefined = adapter
-        if (!localAdapter) {
-          throw new Error("Adapter is required for passkey provider")
+        if (!adapter) {
+          throw new MissingAdapter("Adapter is required for passkey provider")
         }
-        assertAdapterImplementsMethods(
-          "Adapter must implement these methods for a passkey callback",
-          localAdapter,
-          ["createAuthenticator"]
-        )
-        await localAdapter.createAuthenticator(authenticator)
+        await adapter.createAuthenticator(authenticator)
       }
 
       if (useJwtSession) {

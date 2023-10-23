@@ -13,7 +13,6 @@ import {
   type Adapter,
   type AdapterAuthenticator,
   type AdapterUser,
-  assertAdapterImplementsMethods,
 } from "../../adapters"
 import type { PasskeyOptionsCookieData } from "./types"
 import {
@@ -44,19 +43,13 @@ export async function verifyAuthentication(
   reqCookies: RequestInternal["cookies"],
   response: unknown
 ): Promise<UserData | string> {
-  const { adapter: _adapter, provider, logger } = options
-  const adapter: Adapter | undefined = _adapter
+  const { adapter, provider, logger } = options
 
   // Validate that the adapter is defined and implements the required methods
   if (!adapter)
     throw new MissingAdapter(
-      "WebaAuthn verifyAuthentication requires an adapter."
+      "Passkey provider requires an adapter."
     )
-  assertAdapterImplementsMethods(
-    "WebaAuthn verifyAuthentication requires an adapter that implements",
-    adapter,
-    ["getAuthenticator", "getUserByAccount", "updateAuthenticatorCounter"]
-  )
 
   // Basic response type check
   if (

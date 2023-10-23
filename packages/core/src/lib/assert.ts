@@ -8,10 +8,12 @@ import {
   MissingSecret,
   UnsupportedStrategy,
   UntrustedHost,
+  MultiplePasskeyAccountsError,
 } from "../errors.js"
 
 import type { AuthConfig, RequestInternal } from "../types.js"
 import type { WarningCode } from "./utils/logger.js"
+import { Adapter } from "src/adapters.js"
 
 type ConfigError =
   | InvalidCallbackUrl
@@ -21,6 +23,7 @@ type ConfigError =
   | MissingAuthorize
   | MissingSecret
   | UnsupportedStrategy
+  | MultiplePasskeyAccountsError
 
 let warned = false
 
@@ -36,14 +39,15 @@ function isValidHttpUrl(url: string, baseUrl: string) {
 
 let hasCredentials = false
 let hasEmail = false
+let hasPasskey = false
 
-const emailMethods = [
+const emailMethods: (keyof Adapter)[] = [
   "createVerificationToken",
   "useVerificationToken",
   "getUserByEmail",
 ]
 
-const sessionMethods = [
+const sessionMethods: (keyof Adapter)[] = [
   "createUser",
   "getUser",
   "getUserByEmail",
@@ -54,6 +58,18 @@ const sessionMethods = [
   "getSessionAndUser",
   "updateSession",
   "deleteSession",
+]
+
+const passkeyMethods: (keyof Adapter)[] = [
+  "createAuthenticator",
+  "createUser",
+  "getAuthenticator",
+  "getUserByAccount",
+  "getUserByEmail",
+  "linkAccount",
+  "listAuthenticatorsByAccountId",
+  "listLinkedAccounts",
+  "updateAuthenticatorCounter",
 ]
 
 /**
@@ -92,7 +108,7 @@ export function assertConfig(
   )
   const callbackUrlCookie =
     request.cookies?.[
-      options.cookies?.callbackUrl?.name ?? defaultCallbackUrl.name
+    options.cookies?.callbackUrl?.name ?? defaultCallbackUrl.name
     ]
 
   if (callbackUrlCookie && !isValidHttpUrl(callbackUrlCookie, url.origin)) {
@@ -123,6 +139,15 @@ export function assertConfig(
 
     if (provider.type === "credentials") hasCredentials = true
     else if (provider.type === "email") hasEmail = true
+    else if (provider.type === "passkey") {
+      if (hasPasskey) {
+        return new MultiplePasskeyAccountsError(
+          "Multiple passkey accounts are not supported."
+        )
+      } else {
+        hasPasskey = true
+      }
+    }
   }
 
   if (hasCredentials) {
@@ -150,10 +175,11 @@ export function assertConfig(
   const { adapter, session } = options
   if (
     hasEmail ||
+    hasPasskey ||
     session?.strategy === "database" ||
     (!session?.strategy && adapter)
   ) {
-    let methods: string[]
+    let methods: (keyof Adapter)[]
 
     if (hasEmail) {
       if (!adapter)
@@ -165,7 +191,11 @@ export function assertConfig(
       methods = sessionMethods
     }
 
-    const missing = methods.filter((m) => !adapter[m as keyof typeof adapter])
+    if (hasPasskey) {
+      methods = [...new Set([...methods, ...passkeyMethods])]
+    }
+
+    const missing = methods.filter((m) => !adapter[m])
 
     if (missing.length) {
       return new MissingAdapterMethods(

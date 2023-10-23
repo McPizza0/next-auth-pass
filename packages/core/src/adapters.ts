@@ -115,7 +115,6 @@
  * @module adapters
  */
 
-import { FormatMissingAdapterMethods } from "./errors.js"
 import { ProviderType } from "./providers/index.js"
 import type { Account, Awaitable, User, Authenticator } from "./types.js"
 // TODO: Discuss if we should expose methods to serialize and deserialize
@@ -332,39 +331,6 @@ export interface Adapter {
 type AdapterMethod<T extends keyof Adapter = keyof Adapter> = NonNullable<
   Adapter[T]
 >
-
-/**
- * Helper type guard to check if an adapter implements a list of methods.
- *
- * @param adapter Adapter to check
- * @param methods List of methods to check
- * @returns True if the adapter implements all the methods, false otherwise.
- */
-export function adapterImplementsMethods<T extends keyof Adapter>(
-  adapter: Adapter,
-  methods: readonly T[]
-): adapter is Adapter & Record<T, AdapterMethod<T>> {
-  return methods.every((m) => !!adapter[m])
-}
-
-/**
- * Helper assertion to check if an adapter implements a list of methods.
- * If the adapter does not implement all the methods, an error is thrown
- * displaying the provided message and the list of missing methods.
- *
- * @param message Message to display in the error
- * @param adapter Adapter to check
- * @param methods List of methods to check
- */
-export function assertAdapterImplementsMethods<T extends keyof Adapter>(
-  message: string,
-  adapter: Adapter,
-  methods: readonly T[]
-): asserts adapter is Adapter & Record<T, AdapterMethod<T>> {
-  if (!adapterImplementsMethods(adapter, methods)) {
-    throw FormatMissingAdapterMethods(message, adapter, methods)
-  }
-}
 
 // For compatibility with older versions of NextAuth.js
 // @ts-expect-error

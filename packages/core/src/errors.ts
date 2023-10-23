@@ -96,23 +96,9 @@ export class MissingAdapter extends AuthError {}
 /** @todo */
 export class MissingAdapterMethods extends AuthError {}
 
-/**
- * Helper function to throw a `MissingAdapterMethods` error
- * given an adapter and a list of methods that must be implemented.
- *
- * @param message error message
- * @param adapter adapter instance
- * @param methods list of methods that must be implemented
- */
-export function FormatMissingAdapterMethods(
-  message: string,
-  adapter: Adapter,
-  methods: readonly (keyof Adapter)[]
-) {
-  return new MissingAdapterMethods(
-    `${message} "${methods.filter((m) => !!adapter[m]).join(", ")}".`
-  )
-}
+/** Only one Passkey account can be configured at a time. */
+export class MultiplePasskeyAccountsError extends AuthError {}
+
 
 /** @todo */
 export class MissingAPIRoute extends AuthError {}

@@ -2,7 +2,6 @@ import { AccountNotLinkedError, OAuthAccountNotLinked } from "../errors.js"
 import { fromDate } from "./utils/date.js"
 
 import {
-  assertAdapterImplementsMethods,
   type AdapterAccount,
   type AdapterSession,
   type AdapterUser,
@@ -236,23 +235,6 @@ export async function handleLogin(
       return { session, user, isNewUser: true }
     }
   } else if (account.type === "passkey") {
-
-    // We want to make sure our adapter implements the required methods.
-    // Obs: we use ! here because we know from above that the adapter is not undefined.
-    const adapter: Adapter = options.adapter!
-
-    assertAdapterImplementsMethods(
-      "Passkey login requires an adapter that implements",
-      adapter,
-      [
-        "getUserByAccount",
-        "listLinkedAccounts",
-        "linkAccount",
-        "createSession",
-        "createUser",
-      ]
-    )
-
     // First attempt to find an existing user by the passkey account
     const userByAccount = await adapter.getUserByAccount(account)
 

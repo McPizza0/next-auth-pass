@@ -8,7 +8,6 @@ import type {
   PublicKeyCredentialRequestOptionsJSON,
 } from "@simplewebauthn/server/script/deps"
 import {
-  assertAdapterImplementsMethods,
   type Adapter,
   type AdapterUser,
   AdapterAccount,
@@ -21,19 +20,13 @@ async function getUserAndAuthenticators(
   options: InternalOptions<PasskeyProviderType>,
   email?: string
 ): Promise<[Authenticator[] | undefined, AdapterUser | null, AdapterAccount | null]> {
-  const { adapter: _adapter, provider } = options
-  const adapter: Adapter | undefined = _adapter
+  const { adapter, provider } = options
 
   // Validate that the adapter is defined and implements the required methods
   if (!adapter)
     throw new MissingAdapter(
-      "WebaAuthn getUserAndAuthenticators requires an adapter."
+      "Passkey provider requires an adapter."
     )
-  assertAdapterImplementsMethods(
-    "WebAuthn getUserAndAuthenticators requires an adapter that implements",
-    adapter,
-    ["getUserByEmail", "listLinkedAccounts", "listAuthenticatorsByAccountId"]
-  )
 
   // Get the full user from the email
   const user = email ? await adapter.getUserByEmail(email) : null
