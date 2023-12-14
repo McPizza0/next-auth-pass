@@ -199,7 +199,7 @@ export interface VerificationToken {
   token: string
 }
 
-export interface AdapterAuthenticator extends Authenticator { }
+export interface AdapterAuthenticator extends Authenticator {}
 
 /**
  * An adapter is an object with function properties (methods) that read and write data from a data source.
@@ -226,7 +226,9 @@ export interface Adapter {
   getUserByAccount?(
     providerAccountId: Pick<AdapterAccount, "provider" | "providerAccountId">
   ): Awaitable<AdapterUser | null>
-  updateUser?(user: Partial<AdapterUser> & Pick<AdapterUser, 'id'>): Awaitable<AdapterUser>
+  updateUser?(
+    user: Partial<AdapterUser> & Pick<AdapterUser, "id">
+  ): Awaitable<AdapterUser>
   /** @todo This method is currently not invoked yet. */
   deleteUser?(
     userId: string

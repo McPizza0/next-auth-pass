@@ -1,4 +1,4 @@
-import type { Authenticator, InternalOptions } from "../../types"
+import type { Authenticator, InternalOptions } from "../../types.js"
 import {
   generateAuthenticationOptions,
   generateRegistrationOptions,
@@ -11,22 +11,22 @@ import {
   type Adapter,
   type AdapterUser,
   AdapterAccount,
-} from "../../adapters"
-import { randomString } from "../web"
-import { MissingAdapter } from "../../errors"
-import type { PasskeyProviderType } from "../../providers/passkey"
+} from "../../adapters.js"
+import { randomString } from "../web.js"
+import { MissingAdapter } from "../../errors.js"
+import type { PasskeyProviderType } from "../../providers/passkey.js"
 
 async function getUserAndAuthenticators(
   options: InternalOptions<PasskeyProviderType>,
   email?: string
-): Promise<[Authenticator[] | undefined, AdapterUser | null, AdapterAccount | null]> {
+): Promise<
+  [Authenticator[] | undefined, AdapterUser | null, AdapterAccount | null]
+> {
   const { adapter, provider } = options
 
   // Validate that the adapter is defined and implements the required methods
   if (!adapter)
-    throw new MissingAdapter(
-      "Passkey provider requires an adapter."
-    )
+    throw new MissingAdapter("Passkey provider requires an adapter.")
 
   // Get the full user from the email
   const user = email ? await adapter.getUserByEmail(email) : null
@@ -38,8 +38,8 @@ async function getUserAndAuthenticators(
   // Find the account's authenticators
   const authenticators = account
     ? (await adapter.listAuthenticatorsByAccountId(
-      account.providerAccountId
-    )) ?? undefined
+        account.providerAccountId
+      )) ?? undefined
     : undefined
 
   return [authenticators, user, account]
@@ -94,7 +94,10 @@ export async function registrationOptions(
   const { provider } = options
 
   // Get the user authenticators and user object
-  const [authenticators, user, account] = await getUserAndAuthenticators(options, email)
+  const [authenticators, user, account] = await getUserAndAuthenticators(
+    options,
+    email
+  )
 
   // Generate a random acc ID and user name if the user does not exist
   const accountProviderID = account?.providerAccountId ?? randomString(32)

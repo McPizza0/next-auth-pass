@@ -1,4 +1,4 @@
-import type { Account, InternalOptions, RequestInternal } from "../../types"
+import type { Account, InternalOptions, RequestInternal } from "../../types.js"
 import {
   VerifiedAuthenticationResponse,
   VerifiedRegistrationResponse,
@@ -13,15 +13,15 @@ import {
   type Adapter,
   type AdapterAuthenticator,
   type AdapterUser,
-} from "../../adapters"
-import type { PasskeyOptionsCookieData } from "./types"
+} from "../../adapters.js"
+import type { PasskeyOptionsCookieData } from "./types.js"
 import {
   AdapterError,
   MissingAdapter,
   WebAuthnVerificationError,
-} from "../../errors"
-import { decodeSignedCookie } from "../cookie"
-import type { PasskeyProviderType } from "../../providers/passkey"
+} from "../../errors.js"
+import { decodeSignedCookie } from "../cookie.js"
+import type { PasskeyProviderType } from "../../providers/passkey.js"
 
 export type UserData = {
   user: AdapterUser
@@ -47,9 +47,7 @@ export async function verifyAuthentication(
 
   // Validate that the adapter is defined and implements the required methods
   if (!adapter)
-    throw new MissingAdapter(
-      "Passkey provider requires an adapter."
-    )
+    throw new MissingAdapter("Passkey provider requires an adapter.")
 
   // Basic response type check
   if (
@@ -111,12 +109,18 @@ export async function verifyAuthentication(
     await adapter.updateAuthenticatorCounter(authenticator, newCounter)
   } catch (e: any) {
     // Log detailed error message
-    logger.error(new AdapterError(
-      `Failed to update authenticator counter. This may cause future authentication attempts to fail. ${JSON.stringify({
-        authenticatorID: response.id,
-        oldCounter: authenticator.counter,
-        newCounter: authenticationInfo.newCounter,
-      })}`, e))
+    logger.error(
+      new AdapterError(
+        `Failed to update authenticator counter. This may cause future authentication attempts to fail. ${JSON.stringify(
+          {
+            authenticatorID: response.id,
+            oldCounter: authenticator.counter,
+            newCounter: authenticationInfo.newCounter,
+          }
+        )}`,
+        e
+      )
+    )
     // Throw base error to avoid leaking values
     throw new AdapterError(e)
   }
@@ -244,7 +248,9 @@ export async function verifyRegistration(
     credentialBackedUp: registrationInfo.credentialBackedUp,
     credentialDeviceType: registrationInfo.credentialDeviceType,
     credentialPublicKey: registrationInfo.credentialPublicKey,
-    transports: (response as RegistrationResponseJSON).response.transports as AuthenticatorTransport[] | undefined,
+    transports: (response as RegistrationResponseJSON).response.transports as
+      | AuthenticatorTransport[]
+      | undefined,
   }
 
   return { authenticator, account, user }

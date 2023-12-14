@@ -1,17 +1,23 @@
-import { PasskeyProviderType } from "src/providers/passkey"
-import type { InternalOptions, ResponseInternal } from "../../types"
-import { SessionStore, signCookie } from "../cookie"
-import { session as routesSession } from "./session"
-import { authenticationOptions, registrationOptions } from "../passkey/options"
+import { PasskeyProviderType } from "src/providers/passkey.js"
+import type { InternalOptions, ResponseInternal } from "../../types.js"
+import { SessionStore, signCookie } from "../cookie.js"
+import { session as routesSession } from "./session.js"
+import {
+  authenticationOptions,
+  registrationOptions,
+} from "../passkey/options.js"
 import type {
   PasskeyOptionsCookieData,
   PasskeyOptionsReturn,
-} from "../passkey/types"
+} from "../passkey/types.js"
 
 /**
  * Generate passkey registration options and set the challenge cookie.
  */
-async function doRegister(options: InternalOptions<PasskeyProviderType>, email: string): Promise<ResponseInternal<PasskeyOptionsReturn>> {
+async function doRegister(
+  options: InternalOptions<PasskeyProviderType>,
+  email: string
+): Promise<ResponseInternal<PasskeyOptionsReturn>> {
   const { provider } = options
 
   // Get registration options
@@ -26,7 +32,7 @@ async function doRegister(options: InternalOptions<PasskeyProviderType>, email: 
     type: "challenge",
     value: cookieData,
     cookieOptions: { maxAge: provider.timeout },
-    options
+    options,
   })
 
   // Return the options and set the challenge cookie
@@ -40,7 +46,10 @@ async function doRegister(options: InternalOptions<PasskeyProviderType>, email: 
 /**
  * Generate passkey authentication options and set the challenge cookie.
  */
-async function doAuthenticate(options: InternalOptions<PasskeyProviderType>, email?: string): Promise<ResponseInternal<PasskeyOptionsReturn>> {
+async function doAuthenticate(
+  options: InternalOptions<PasskeyProviderType>,
+  email?: string
+): Promise<ResponseInternal<PasskeyOptionsReturn>> {
   // Get auth options
   const authOptions = await authenticationOptions(options, email)
 
@@ -52,7 +61,7 @@ async function doAuthenticate(options: InternalOptions<PasskeyProviderType>, ema
     type: "challenge",
     value: cookieData,
     cookieOptions: { maxAge: options.provider.timeout },
-    options
+    options,
   })
 
   // Return the options and set the challenge cookie
@@ -107,8 +116,8 @@ export async function passkeyOptions(
       return doAuthenticate(options, queryEmail)
     }
     case "register": {
-      if ((loggedIn !== providedQueryEmail) && !userWithEmailExists) {
-        return doRegister(options, sessionUserEmail ?? queryEmail as string) // TS isn't smart enough to know that this will be defined
+      if (loggedIn !== providedQueryEmail && !userWithEmailExists) {
+        return doRegister(options, sessionUserEmail ?? (queryEmail as string)) // TS isn't smart enough to know that this will be defined
       }
 
       break
