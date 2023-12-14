@@ -17,6 +17,7 @@ import Passkey, { PasskeyConfig, PasskeyProviderType } from "./passkey.js"
 export * from "./credentials.js"
 export * from "./email.js"
 export * from "./oauth.js"
+export * from "./passkey.js"
 
 /**
  * Providers passed to Auth.js must define one of these types.
