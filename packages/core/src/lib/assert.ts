@@ -108,7 +108,7 @@ export function assertConfig(
   )
   const callbackUrlCookie =
     request.cookies?.[
-    options.cookies?.callbackUrl?.name ?? defaultCallbackUrl.name
+      options.cookies?.callbackUrl?.name ?? defaultCallbackUrl.name
     ]
 
   if (callbackUrlCookie && !isValidHttpUrl(callbackUrlCookie, url.origin)) {
@@ -140,7 +140,10 @@ export function assertConfig(
     if (provider.type === "credentials") hasCredentials = true
     else if (provider.type === "email") hasEmail = true
     else if (provider.type === "passkey") {
-      if (hasPasskey) {
+      let passkeyCount = options.providers.filter(
+        (p) => (typeof p === "function" ? p() : p).type === "passkey"
+      ).length
+      if (passkeyCount > 1) {
         return new MultiplePasskeyAccountsError(
           "Multiple passkey accounts are not supported."
         )
